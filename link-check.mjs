@@ -13,7 +13,7 @@
 
 import { CheerioCrawler, RequestQueue } from 'crawlee'
 
-// ---- Edit this list with your client sites ------------------------------
+// ---- Client sites -------------------------------------------------------
 const SITES = [
 	'https://www.wdc-brands.com',
 	'https://www.wdc-spaces.com',
@@ -30,6 +30,10 @@ const SITES = [
 const MAX_PAGES = 300 // safety cap on pages crawled per site
 const REQUEST_TIMEOUT = 10000 // ms, per link status check
 const CHECK_CONCURRENCY = 10 // parallel link checks
+
+// Present as a real browser so WAF/bot protection lets the crawl through.
+const BROWSER_UA =
+	'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
 function normalise(href, base) {
 	try {
@@ -58,7 +62,7 @@ async function checkUrl(url) {
 	const opts = {
 		redirect: 'follow',
 		signal: AbortSignal.timeout(REQUEST_TIMEOUT),
-		headers: { 'user-agent': 'link-check-bot' },
+		headers: { 'user-agent': BROWSER_UA },
 	}
 	try {
 		let res = await fetch(url, { ...opts, method: 'HEAD' })
@@ -101,7 +105,20 @@ async function crawlSite(site, idx) {
 		maxRequestsPerCrawl: MAX_PAGES,
 		requestHandlerTimeoutSecs: 30,
 		maxRequestRetries: 1,
+		// Don't treat 401/403/429 as "blocked" and bail; just record the status.
 		sessionPoolOptions: { blockedStatusCodes: [] },
+		// Send a real browser UA + headers on the page crawl, not just link checks.
+		preNavigationHooks: [
+			(_ctx, gotOptions) => {
+				gotOptions.headers = {
+					...gotOptions.headers,
+					'User-Agent': BROWSER_UA,
+					Accept:
+						'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+					'Accept-Language': 'en-GB,en;q=0.9',
+				}
+			},
+		],
 		async requestHandler({ request, $, enqueueLinks }) {
 			const from = request.url
 			$('a[href]').each((_, el) => {
