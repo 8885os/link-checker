@@ -1,0 +1,12 @@
+{
+  "name": "link-check",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node link-check.mjs"
+  },
+  "dependencies": {
+    "crawlee": "^3.11.0"
+  }
+}
